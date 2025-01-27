@@ -5,10 +5,12 @@ Requirements for setting up this environment is having [docker installed](https:
 ## Setting Up Environment with Docker Compose
 
 ### What is Docker Compose
-Docker Compose is a tool that let's us define our environment in a file called `docker-compose.yml`, where we can define multiple containers to run as different 'services' that will get generate on a unique network. 
+
+Docker Compose is a tool that lets us define our environment in a file called `docker-compose.yml`, where we can define multiple containers to run as different 'services' that will get generate on a unique network. 
 
 ### Docker Network Trouble Shooting Tips
-A dns (domain name service) will be run between the container on the network allowing each container to be referenced by their `container_name` like `http://container_name:8080`. If for some reason the DNS isn't resolving (you errors connecting from one service to another using their container name) then you'll want to use the containers direct ip address on the network docker creates for your environment.
+
+A dns (domain name service) will be run between the containers on the network, allowing each container to be referenced by their `container_name` like `http://container_name:8080`. If for some reason the DNS isn't resolving (you get errors connecting from one service to another using their container name) then you'll want to use the containers direct ip address on the network docker creates for your environment.
 
 - Find the network by running `docker network ls`
 
@@ -63,7 +65,7 @@ This will bring up output that looks like this
 What you want to look at is this section for the ipv4 address of the particular container:
 
 ```json
-"Containers": {
+        "Containers": {
             "container_id_1": {
                 "Name": "myproject_container_1",
                 "EndpointID": "ep1",
@@ -87,30 +89,28 @@ In this case the IP address of the container called `container_id_2` is `172.18.
 So in an empty directory somewhere on your computer you will create a `docker-compose.yml` and fill it with the following:
 
 ```yaml
-version: '3.8'
-
 services:
-## Dremio Lakehouse Platform
+  ## Dremio Lakehouse Platform
   dremio:
     platform: linux/x86_64
     image: dremio/dremio-oss:latest
+    container_name: dremio
     ports:
       - 9047:9047
       - 31010:31010
       - 32010:32010
       - 45678:45678
-    container_name: dremio
     environment:
       - DREMIO_JAVA_SERVER_EXTRA_OPTS=-Dpaths.dist=file:///opt/dremio/data/dist
     networks:
       dremio-iceberg:
-## Minio Object Storage
+  ## Minio Object Storage
   minio:
     image: minio/minio
     container_name: minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - 9000:9000
+      - 9001:9001
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
@@ -120,7 +120,7 @@ services:
     command: server /data --console-address ":9001"
     networks:
         dremio-iceberg:
-## Nessie Iceberg Catalog
+  ## Nessie Iceberg Catalog
   nessie:
     image: projectnessie/nessie
     container_name: nessie
@@ -279,44 +279,43 @@ Once you are on the Dremio UI we are going to add 2 sources
 
 This will be our Nessie Catalog for Tracking Apache Iceberg Tables, select "add source" choose "nessie".
 
-**General Settings**
+##### General Settings
 
 - name: nessie
 - Nessie endpoint URL: http://nessie:19120/api/v2
 - Authentication: none
 
-**Storage Settings**
+##### Storage Settings
 
 - aws root path: warehouse
 - aws access key: admin
 - aws secret key: password
 - connection properties:
-    - fs.s3a.path.style.access = true
-    - fs.s3a.endpoint = minio:9000
-    - dremio.s3.compat = true
-- encrypt connection: false
+  - fs.s3a.path.style.access = true
+  - fs.s3a.endpoint = minio:9000
+  - dremio.s3.compat = true
+- encrypt connection: false (unticked)
 
 #### S3/Minio Connection
 
 This will allow us to use the "lakehouse" bucket on minio as a place to upload json, csv, parquet files to work with if we want. Create a new source and select "S3"
 
-**general settings**
+##### general settings
 
 - name: lakehouse
 - authentication:
-    - type: AWS Access Key
-    - aws access key: admin
-    - aws secret key: password
-    - encrypt connection: false
+  - type: AWS Access Key
+  - aws access key: admin
+  - aws secret key: password
+  - encrypt connection: false
 
-**advanced options**
+##### advanced options**
 
-- enable compatibility mode: true
+- enable compatibility mode: true (ticked)
 - root path: /lakehouse
 - connection properties:
-    - fs.s3a.path.style.access = true
-    - fs.s3a.endpoint = minio:9000
-
+  - fs.s3a.path.style.access = true
+  - fs.s3a.endpoint = minio:9000
 
 Now you can head over to the SQL editor, which is the second item from the top on the sidebar menu on the left.
 
@@ -355,7 +354,7 @@ SELECT * FROM nessie.examples.weather;
 #### Inserting Data from Another Table
 
 ```sql
-INSERT INTO nessie.examples.weather AS SELECT * FROM Samples."samples.dremio.com"."NYC-weather.csv";
+INSERT INTO nessie.examples.weather SELECT * FROM Samples."samples.dremio.com"."NYC-weather.csv";
 ```
 
 #### Using COPY INTO to Insert Data From Another File
